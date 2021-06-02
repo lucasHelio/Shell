@@ -2,7 +2,8 @@
 #include<stdlib.h>
 #include <string.h>
 #include <stdio_ext.h>
-#include <unistd.h> 
+#include <unistd.h>
+char *getcwd(char *buf, size_t size);
 
 #define bufferLimite 200
 
@@ -36,56 +37,77 @@ void parsedInput(char *comando, char ** destino, char separador) //divide os com
     char *parsed;
     int index =0;
     parsed = strtok(comando, &separador);
-
+    
+    
     while(parsed!= NULL)
     {
+        
         destino[index] = parsed;
+        
         index++;
         parsed = strtok(NULL,&separador);
     }
     destino[index] = NULL;
+    
     return;
 }
 
 
+char * ultimoElemCaminho(char ** caminho)
+{
+    for (int i=0; i< bufferLimite;i++)
+    {
+        if(caminho[i+1] == NULL)
+            return caminho[i];
+    }
+}
 
 
+void cd(char *caminho)
+{
+    if(chdir(caminho) != 0) 
+    {
+        perror("erro ao tentar mudar de diretorio\n");
+        return;
+    }
+    else 
+    {
+        //char cwd[bufferLimite];
+        //getcwd(cwd, sizeof(cwd));
+        chdir(caminho); 
+    }
+    return;
+}
 
+void printaCaminho()
+{
+    char cwd[bufferLimite];
+    if (getcwd(cwd, sizeof(cwd)) != NULL) {
+        char **parsed = (char **) malloc (sizeof(char *));
+        for(int i =0; i<bufferLimite; i++)
+        {
+            parsed[i]= (char *) malloc(sizeof(char));
+        }
+        
+        parsedInput(cwd, parsed, '/');
+        
 
-
+        printf("\033[92mconcha:\033[34m%s\033[0m$ ",ultimoElemCaminho(parsed));
+        
+    }
+    else 
+    {
+        perror("Erro ao procurar diretorio");
+        return;
+    }
+}
 
 
 void identificaComando(char **comando, char ** caminho)//identifica o comando e redireciona para o proprio;
 {
     if (strcmp(comando[0], "cd") == 0)//excuta o comando cd
     {
-        if(chdir(comando[1]) != 0) {
-            perror("erro ao tentar mudar de diretorio\n");
-        }
-        else 
-        {
-            
-            parsedInput(comando[1], caminho, '/');
-            char *palavratemp;
-            char *novocaminho;
-            int i=0;
-            while(caminho[i] != NULL)
-            {
-                
-                if(strcmp(caminho[i],".." )==0)
-                {
-                    novocaminho = caminho[i-2];
-                }
-                i++;
-            }
-        }
-        
-        //debug print
-        //for(int i=0; i<bufferLimite;i++)
-        //{
-        //printf("caminho %d: %s\n", i, caminho[i]);
-        //}     
-        
+        cd(comando[1]);
         return;
     }
         
@@ -105,15 +127,7 @@ void identificaComando(char **comando, char ** caminho)//identifica o comando e 
     }
 }
 
-char * ultimoElemCaminho(char ** caminho)
-{
-    for (int i=0; i< bufferLimite;i++)
-    {
-        if(caminho[i+1] == NULL)
-            return caminho[i];
-    }
 
-}
 
 
 
@@ -126,39 +140,45 @@ int main()
     {
         caminho[i]= (char*) malloc(bufferLimite*sizeof(char));
     }
-    //strcpy(caminho[0], "~");
-    //caminho[0][0] = '~';
-    //caminho[1]= NULL;
-    caminho[0][0] = '/';
-    caminho[1]="/home";
-    caminho[2][0]='~';
-    caminho[3]= NULL;
-    char *comando= (char *) malloc(bufferLimite*sizeof(char));
+    if(caminho == NULL)return -1;
     
-    //alocaMem1D(comando);
-    //alocaMem2D(caminho);
+    char *comando= (char *) malloc(bufferLimite*sizeof(char));    
+    char **comandoSeparado =(char **) malloc(bufferLimite*sizeof(char *));
+    for(int i=0; i<bufferLimite; i++)
+    {
+        comandoSeparado[i]= (char*) malloc(bufferLimite*sizeof(char));
+    }
+
+    caminho[0][0]= '~';
+    caminho[1]=NULL;
     
+    //printaCaminho();
     while(1) //enquanto a concha existe ele está rodando
     {
         
-        //ultimoElemCaminho(caminho);
-        //printf("\033[34mThis is yellow\033[0m");//azul
-        //printf("\033[92mThis is yellow\033[0m");//verde
         
-        printf("\033[92mconcha:\033[34m%s\033[0m$ ", ultimoElemCaminho(caminho));
-        //printf("concha:~%s$ ", caminho[1]);
+        char cwd[bufferLimite];
+        //*caminho = cwd;
+        
+        //if (getcwd(cwd, sizeof(cwd)) != NULL) {
+        
+        //printf("\033[92mconcha:\033[34m%s\033[0m$ ", cwd);
+        printaCaminho();
+        //printf("\033[92mconcha:\033[34m%s\033[0m$ ", ultimoElemCaminho(caminho));
+        //}
+        //else {
+        //    perror("Erro ao procurar diretorio");
+        //    return 1;
+        //}
         leInput(comando);
-        char **comandoSeparado = malloc(8*sizeof(char *));
-        //alocaMem2D(comandoSeparado);
-
         parsedInput(comando, comandoSeparado, ' ');
-        
+
+
+
         identificaComando(comandoSeparado, caminho);
-    
-        //printf("%s\n", comandoSeparado[1]);
-                
-        
-        //break;
+        //printf("caminho 1: %s\n", caminho[0]);
+        //printf("caminho 2: %s\n", caminho[1]);
+        //printf("caminho 3: %s\n", caminho[2]);
         
     }
     
