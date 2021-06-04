@@ -3,6 +3,9 @@
 #include <string.h>
 #include <stdio_ext.h>
 #include <unistd.h>
+#include<signal.h>
+#include<sys/wait.h>
+
 char *getcwd(char *buf, size_t size);
 
 #define bufferLimite 200
@@ -68,13 +71,11 @@ void cd(char *caminho)
     if(chdir(caminho) != 0) 
     {
         perror("erro ao tentar mudar de diretorio\n");
-        return;
     }
     else 
     {
-        //char cwd[bufferLimite];
-        //getcwd(cwd, sizeof(cwd));
         chdir(caminho); 
+        //kill(0,SIGTERM);
     }
     return;
 }
@@ -102,8 +103,28 @@ void printaCaminho()
     }
 }
 
+void ls(char *tipo, char *diretorio)
+{
+        if(tipo == NULL)
+        {
+            //faz ls do diretorio x
+            //tipo = "";
+            execl("/usr/bin/ls", "ls", diretorio, NULL);
+            
+            return;//teoricamente nunca chega aqui
+        }
+        else
+        {
+            //faz o ls de tipo t no diretorio x
+            execl("/usr/bin/ls", "ls", tipo, diretorio, NULL);
+            
+            
+            return;//teoricamente nunca chega aqui
+        }
+}
 
-void identificaComando(char **comando, char ** caminho)//identifica o comando e redireciona para o proprio;
+
+void identificaComando(char **comando)//identifica o comando e redireciona para o proprio;
 {
     if (strcmp(comando[0], "cd") == 0)//excuta o comando cd
     {
@@ -111,20 +132,67 @@ void identificaComando(char **comando, char ** caminho)//identifica o comando e 
         return;
     }
         
-    if (strcmp(comando[0], "jobs")==0 ) //executa o comando jobs
+    if (strcmp(comando[0], "jobs")==0 ) //executa o comando jobs  //ToDo
     {
         return;
     }
 
-    if(strcmp(comando[0], "fg")==0 )// executa o comando fg
+    if(strcmp(comando[0], "fg")==0 )// executa o comando fg    //ToDo
     {
         return;
     }
 
-    if(strcmp(comando[0], "bg")==0)//executa o comando bg
+    if(strcmp(comando[0], "bg")==0)//executa o comando bg    //ToDo
     {
         return;
     }
+    
+    
+    if(strcmp(comando[0], "ls") == 0)//executa o comando ls
+    {
+        char cwd[bufferLimite];
+        
+        if (comando[1]==NULL) //ls do proprio diretorio
+        {
+            if (getcwd(cwd, sizeof(cwd)) != NULL) {
+                ls(NULL, cwd);
+            }
+            else 
+            {
+                perror("talvez aqui");//erro no diretorio que a gente tá??
+                return;
+            }
+            return;//teoricamente nunca chegamos nesse return
+        }
+
+        if (comando[1][0]=='-'){ //ls de tipo t do diretorio x
+            if (comando[2]==NULL)
+            {
+                if (getcwd(cwd, sizeof(cwd)) != NULL) 
+                {
+                    ls(comando[1], cwd); //comando[1] - tipo do ls do propio diretorio
+                }
+                else 
+                {
+                    perror("tamo aqui");//erro no diretorio que a gente tá??
+                    return;
+                }
+                return;//teoricamente nunca chegamos nesse return
+                
+            }
+            else
+            {
+                ls(comando[1], comando[2]); //comando[1] - tipo do ls   comando[2] - diretorio
+                return;//teoricamente nunca chegamos nesse return
+            }
+        }
+        else  //ls do diretorio x
+        { 
+            ls(NULL, comando[1]);
+            return;//teoricamente nunca chegamos nesse return
+        }
+    }
+
 }
 
 
@@ -152,33 +220,23 @@ int main()
     caminho[0][0]= '~';
     caminho[1]=NULL;
     
-    //printaCaminho();
     while(1) //enquanto a concha existe ele está rodando
     {
+
+        //char cwd[bufferLimite];
         
-        
-        char cwd[bufferLimite];
-        //*caminho = cwd;
-        
-        //if (getcwd(cwd, sizeof(cwd)) != NULL) {
-        
-        //printf("\033[92mconcha:\033[34m%s\033[0m$ ", cwd);
         printaCaminho();
-        //printf("\033[92mconcha:\033[34m%s\033[0m$ ", ultimoElemCaminho(caminho));
-        //}
-        //else {
-        //    perror("Erro ao procurar diretorio");
-        //    return 1;
-        //}
+        
         leInput(comando);
         parsedInput(comando, comandoSeparado, ' ');
-
-
-
-        identificaComando(comandoSeparado, caminho);
-        //printf("caminho 1: %s\n", caminho[0]);
-        //printf("caminho 2: %s\n", caminho[1]);
-        //printf("caminho 3: %s\n", caminho[2]);
+        if(fork()== 0){
+            identificaComando(comandoSeparado);
+        }
+        else{
+            wait(NULL);
+        }
+        
+        
         
     }
     
