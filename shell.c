@@ -6,11 +6,14 @@
 #include<signal.h>
 #include<sys/wait.h>
 
+#define BACKGROUND_EXECUTION 0
+#define FOREGROUND_EXECUTION 1
 
 typedef struct jobs
 {
     int id;
-    char * status;
+    int modo;
+    char  status[20];
     pid_t pid_process;
 
 }jobs;
@@ -24,18 +27,30 @@ char *getcwd(char *buf, size_t size);
 
 const char *status_string[] = { "rodando", "travado", "em chok"};
 
-void adicionaJobs(jobs job, pid_t pid_process)
+void adicionaJobs(jobs job, pid_t pid_process, char* modo)
 {
     //jobs novojob;
-    job.id = jobsexistentes;
-    strcpy(job.status, status_string[0]);//novojob.status = status_string[0]; //status = rodando //talvez strcpy
-    job.pid_process = pid_process;
     
+    job.id = jobsexistentes;
+
+    strcpy(job.status, status_string[0]);
+
+    job.pid_process = pid_process;
+
+    if(modo == "&") //modo em background
+    {
+        job.modo = 0;
+
+    }
+    else //modo em foreground
+    { 
+        job.modo = 1;
+    }
 
     jobscriados[jobsexistentes-1] = job;
-    
-    jobsexistentes++;
 
+    jobsexistentes++;
+    return;
 }
 
 void eliminaJobs(pid_t pid_process) //seta o status do job como terminado
@@ -155,9 +170,7 @@ void printaCaminho()
 
 void exec_nao_buildin(char **comando)//, char *tipo, char *diretorio)
 {
-    //if(fork ==0)
-    //{
-        //printf("to aqui");
+    
     char caminho[20] = "/usr/bin/";
     char cwd[bufferLimite];
         
@@ -166,7 +179,6 @@ void exec_nao_buildin(char **comando)//, char *tipo, char *diretorio)
     if(comando[1] == NULL) //comando do diretorio atual
     {
         if(getcwd(cwd, sizeof(cwd)) != NULL){
-            
             execl(caminho, comando[0], cwd, NULL);
         }
         else{perror("");return;}
@@ -304,6 +316,7 @@ int main()
 {   
     jobscriados = (jobs *)malloc(20*sizeof(jobs));//como aloca isso?
     jobs novoJob;
+    pid_t pid;
     __fpurge(stdin);
     limpaTerminal();
     char **caminho = (char **) malloc(bufferLimite*sizeof(char *));
@@ -334,17 +347,23 @@ int main()
         //identificar se o comando eh build in
         // se nao for cria filho
         if(!ehBuildin(comandoSeparado[0])){
-            
-            if(fork()== 0)//criando filho
+            pid = fork();
+            //if(fork()== 0){//criando filho
+            if(pid == 0){
                 exec_nao_buildin(comandoSeparado);
-            
+            }
             else //processo pai esperando filho retornar
+            {
+                //printf("pid do pai: %d\n",getpid());
+                adicionaJobs(novoJob, pid, comandoSeparado[3]);
                 wait(NULL);
+            }
         }
 
         else{
             exec_buildin(comandoSeparado);
         }
+        printf("job id: %d\n",jobscriados[0].id );
     }
     
     return 0;
