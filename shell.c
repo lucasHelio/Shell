@@ -6,11 +6,61 @@
 #include<signal.h>
 #include<sys/wait.h>
 
+
+typedef struct jobs
+{
+    int id;
+    char * status;
+    pid_t pid_process;
+
+}jobs;
+
+int jobsexistentes=1;
+jobs* jobscriados;
+
 char *getcwd(char *buf, size_t size);
 
 #define bufferLimite 200
 
+const char *status_string[] = { "rodando", "travado", "em chok"};
 
+void adicionaJobs(jobs job, pid_t pid_process)
+{
+    //jobs novojob;
+    job.id = jobsexistentes;
+    strcpy(job.status, status_string[0]);//novojob.status = status_string[0]; //status = rodando //talvez strcpy
+    job.pid_process = pid_process;
+    
+
+    jobscriados[jobsexistentes-1] = job;
+    
+    jobsexistentes++;
+
+}
+
+void eliminaJobs(pid_t pid_process) //seta o status do job como terminado
+{
+    for(int i =0; i< jobsexistentes;i++)
+    {
+        if(jobscriados[i].pid_process == pid_process){
+            strcpy(jobscriados[i].status, status_string[2]);
+            break;
+        }
+    }
+    return;
+}
+
+void listjobs()//printa os jobs que ainda não foram terminados
+{ 
+    for(int i=0;i<jobsexistentes;i++)
+    {
+        if(jobscriados->status!=status_string[2])
+        {
+            printf("id: [%d] status: %s pid process: %d\n", jobscriados[i].id, jobscriados[i].status, jobscriados[i].pid_process);
+        }
+    }
+    return;
+}
 
 void leInput(char *input)
 {
@@ -103,36 +153,48 @@ void printaCaminho()
     }
 }
 
-void ls(char *tipo, char *diretorio)
+void exec_nao_buildin(char **comando)//, char *tipo, char *diretorio)
 {
     //if(fork ==0)
     //{
-        if(tipo == NULL)
-        {
-            //faz ls do diretorio x
-            //tipo = "";
-            //execl("/usr/bin/ls", "ls", diretorio, NULL);
-            execl("/usr/bin/ls", "/usr/bin/ls", diretorio, NULL);
+        //printf("to aqui");
+    char caminho[20] = "/usr/bin/";
+    char cwd[bufferLimite];
+        
+
+    strcat(caminho, comando[0]);
+    if(comando[1] == NULL) //comando do diretorio atual
+    {
+        if(getcwd(cwd, sizeof(cwd)) != NULL){
             
-            
-            return;//teoricamente nunca chega aqui
+            execl(caminho, comando[0], cwd, NULL);
         }
-        else
+        else{perror("");return;}
+    }
+
+    else if(comando[1][0]=='-')
+    {
+        if(comando[2]==NULL)
         {
-            //faz o ls de tipo t no diretorio x
-            execl("/usr/bin/ls", "ls", tipo, diretorio, NULL);
-            
-            exit(0);
-            return;//teoricamente nunca chega aqui
+            if(getcwd(cwd, sizeof(cwd))!=NULL)
+            {
+                execl(caminho, comando[0], comando[1], cwd, NULL); //comando de tipo t do diretorio atual
+            }
+            else{perror(""); return;}
         }
-    //}
-    //else 
-    //    wait(NULL);
-        return;
+        else{ //comando de tipo t do diretorio x
+            execl(caminho, comando[0], comando[1], comando[2], NULL);
+        }
+    }
+    
+    else//comando do diretorio x
+    {
+        execl(caminho, comando[0], comando[1], NULL);
+    }
 }
 
 
-void identificaComando(char **comando)//identifica o comando e redireciona para o proprio;
+void exec_buildin(char **comando)//identifica o comando e redireciona para o proprio;
 {
     if (strcmp(comando[0], "cd") == 0)//excuta o comando cd
     {
@@ -167,14 +229,15 @@ void identificaComando(char **comando)//identifica o comando e redireciona para 
         return;
     }
 
-    if(strcmp(comando[0], "ls") == 0)//executa o comando ls //ls n eh build-in 
+    /* //apartir dq realocar o codigo
+    if(strcmp(comando[0], "rm") == 0 ||strcmp(comando[0], "ls")==0)//executa o comando ls //ls n eh build-in 
     {                                                       //deveria ficar junto?
         char cwd[bufferLimite];                 //pra dar ls tem q ser o filho
                                                 //mas n deve ficar junto dos built-in
         if (comando[1]==NULL) //ls do proprio diretorio
         {
             if (getcwd(cwd, sizeof(cwd)) != NULL) {
-                ls(NULL, cwd);
+                ls(comando[0], NULL, cwd);
             }
             else 
             {
@@ -189,7 +252,7 @@ void identificaComando(char **comando)//identifica o comando e redireciona para 
             {
                 if (getcwd(cwd, sizeof(cwd)) != NULL) 
                 {
-                    ls(comando[1], cwd); //comando[1] - tipo do ls do propio diretorio
+                    ls(comando[0], comando[1], cwd); //comando[1] - tipo do ls do propio diretorio
                 }
                 else 
                 {
@@ -201,33 +264,31 @@ void identificaComando(char **comando)//identifica o comando e redireciona para 
             }
             else
             {
-                ls(comando[1], comando[2]); //comando[1] - tipo do ls   comando[2] - diretorio
+                ls(comando[0], comando[1], comando[2]); //comando[1] - tipo do ls   comando[2] - diretorio
                 return;//teoricamente nunca chegamos nesse return
             }
         }
         else  //ls do diretorio x
         { 
-            ls(NULL, comando[1]);
+            ls(comando[0], NULL, comando[1]);
             return;//teoricamente nunca chegamos nesse return
         }
-    }
+    }*/
 
 }
 
 
+
+
 int ehBuildin(char *comando) //valida se o comando eh buildin ou nao
 {
-    char **comandobuildin = (char**) malloc(6);
-    for(int i=0;i<bufferLimite;i++)
-    {
-        comandobuildin[i]=(char*) malloc(6);
-    }
-    comandobuildin[0]="cd";
-    comandobuildin[1]="jobs";
-    comandobuildin[2]="fg";
-    comandobuildin[3]="bg";
-    comandobuildin[4]="exit";
-    comandobuildin[5]="clear";
+    char *comandobuildin[] = { "cd", "jobs", "fg", "bg", "exit", "clear"};
+    //comandobuildin[0]="cd";
+    //comandobuildin[1]="jobs";
+    //comandobuildin[2]="fg";
+    //comandobuildin[3]="bg";
+    //comandobuildin[4]="exit";
+    //comandobuildin[5]="clear";
     for(int i=0 ; i< 6;i++)
     {
         if(strcmp(comando, comandobuildin[i])==0)
@@ -241,6 +302,8 @@ int ehBuildin(char *comando) //valida se o comando eh buildin ou nao
 
 int main()
 {   
+    jobscriados = (jobs *)malloc(20*sizeof(jobs));//como aloca isso?
+    jobs novoJob;
     __fpurge(stdin);
     limpaTerminal();
     char **caminho = (char **) malloc(bufferLimite*sizeof(char *));
@@ -273,14 +336,14 @@ int main()
         if(!ehBuildin(comandoSeparado[0])){
             
             if(fork()== 0)//criando filho
-                identificaComando(comandoSeparado);
+                exec_nao_buildin(comandoSeparado);
             
             else //processo pai esperando filho retornar
                 wait(NULL);
         }
 
         else{
-            identificaComando(comandoSeparado);
+            exec_buildin(comandoSeparado);
         }
     }
     
