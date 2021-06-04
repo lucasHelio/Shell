@@ -71,11 +71,11 @@ void cd(char *caminho)
     if(chdir(caminho) != 0) 
     {
         perror("erro ao tentar mudar de diretorio\n");
+        return;
     }
     else 
     {
         chdir(caminho); 
-        //kill(0,SIGTERM);
     }
     return;
 }
@@ -105,11 +105,15 @@ void printaCaminho()
 
 void ls(char *tipo, char *diretorio)
 {
+    //if(fork ==0)
+    //{
         if(tipo == NULL)
         {
             //faz ls do diretorio x
             //tipo = "";
-            execl("/usr/bin/ls", "ls", diretorio, NULL);
+            //execl("/usr/bin/ls", "ls", diretorio, NULL);
+            execl("/usr/bin/ls", "/usr/bin/ls", diretorio, NULL);
+            
             
             return;//teoricamente nunca chega aqui
         }
@@ -118,9 +122,13 @@ void ls(char *tipo, char *diretorio)
             //faz o ls de tipo t no diretorio x
             execl("/usr/bin/ls", "ls", tipo, diretorio, NULL);
             
-            
+            exit(0);
             return;//teoricamente nunca chega aqui
         }
+    //}
+    //else 
+    //    wait(NULL);
+        return;
 }
 
 
@@ -147,11 +155,22 @@ void identificaComando(char **comando)//identifica o comando e redireciona para 
         return;
     }
     
-    
-    if(strcmp(comando[0], "ls") == 0)//executa o comando ls
+    if(strcmp(comando[0], "exit")==0)//executa o exit./terminal
     {
-        char cwd[bufferLimite];
-        
+        printf("flwww\n");
+        exit(0);    //hmmmmm
+    }
+
+    if(strcmp(comando[0], "clear")==0)// limpa o terminalc
+    {
+        limpaTerminal();
+        return;
+    }
+
+    if(strcmp(comando[0], "ls") == 0)//executa o comando ls //ls n eh build-in 
+    {                                                       //deveria ficar junto?
+        char cwd[bufferLimite];                 //pra dar ls tem q ser o filho
+                                                //mas n deve ficar junto dos built-in
         if (comando[1]==NULL) //ls do proprio diretorio
         {
             if (getcwd(cwd, sizeof(cwd)) != NULL) {
@@ -196,7 +215,28 @@ void identificaComando(char **comando)//identifica o comando e redireciona para 
 }
 
 
-
+int ehBuildin(char *comando) //valida se o comando eh buildin ou nao
+{
+    char **comandobuildin = (char**) malloc(6);
+    for(int i=0;i<bufferLimite;i++)
+    {
+        comandobuildin[i]=(char*) malloc(6);
+    }
+    comandobuildin[0]="cd";
+    comandobuildin[1]="jobs";
+    comandobuildin[2]="fg";
+    comandobuildin[3]="bg";
+    comandobuildin[4]="exit";
+    comandobuildin[5]="clear";
+    for(int i=0 ; i< 6;i++)
+    {
+        if(strcmp(comando, comandobuildin[i])==0)
+        {
+            return 1; // achou comando build in
+        }
+    }
+    return 0; // nao achou um comando build in
+}
 
 
 int main()
@@ -222,22 +262,26 @@ int main()
     
     while(1) //enquanto a concha existe ele está rodando
     {
-
-        //char cwd[bufferLimite];
         
         printaCaminho();
         
         leInput(comando);
         parsedInput(comando, comandoSeparado, ' ');
-        if(fork()== 0){
+        
+        //identificar se o comando eh build in
+        // se nao for cria filho
+        if(!ehBuildin(comandoSeparado[0])){
+            
+            if(fork()== 0)//criando filho
+                identificaComando(comandoSeparado);
+            
+            else //processo pai esperando filho retornar
+                wait(NULL);
+        }
+
+        else{
             identificaComando(comandoSeparado);
         }
-        else{
-            wait(NULL);
-        }
-        
-        
-        
     }
     
     return 0;
