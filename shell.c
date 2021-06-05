@@ -5,12 +5,20 @@
 #include <unistd.h>
 #include<signal.h>
 #include<sys/wait.h>
+#include <sys/types.h>
+#include<setjmp.h>
+
 
 #define BACKGROUND_EXECUTION 0
 #define FOREGROUND_EXECUTION 1
 
+#define BUFFERLIMITE 200
+static jmp_buf env;
+int jump_active = 0;
+
 typedef struct jobs
 {
+    char nome[20];
     int id;
     int modo;
     char  status[20];
@@ -23,29 +31,23 @@ jobs* jobscriados;
 
 char *getcwd(char *buf, size_t size);
 
-#define bufferLimite 200
+
 
 const char *status_string[] = { "rodando", "travado", "em chok"};
 
-void adicionaJobs(jobs job, pid_t pid_process, char* modo)
+void adicionaJobs(jobs job, pid_t pid_process, int modo, char* nome)
 {
-    //jobs novojob;
+    
     
     job.id = jobsexistentes;
+
+    strcpy(job.nome, nome);
 
     strcpy(job.status, status_string[0]);
 
     job.pid_process = pid_process;
-
-    if(modo == "&") //modo em background
-    {
-        job.modo = 0;
-
-    }
-    else //modo em foreground
-    { 
-        job.modo = 1;
-    }
+    
+    job.modo = modo;
 
     jobscriados[jobsexistentes-1] = job;
 
@@ -58,7 +60,7 @@ void eliminaJobs(pid_t pid_process) //seta o status do job como terminado
     for(int i =0; i< jobsexistentes;i++)
     {
         if(jobscriados[i].pid_process == pid_process){
-            strcpy(jobscriados[i].status, status_string[2]);
+            strcpy(jobscriados[i].status, status_string[2]);// seta como terminado
             break;
         }
     }
@@ -71,7 +73,7 @@ void listjobs()//printa os jobs que ainda não foram terminados
     {
         if(jobscriados->status!=status_string[2])
         {
-            printf("id: [%d] status: %s pid process: %d\n", jobscriados[i].id, jobscriados[i].status, jobscriados[i].pid_process);
+            printf("id: [%d] nome: %s \tstatus: %s pid process: %d\n", jobscriados[i].id, jobscriados[i].nome, jobscriados[i].status, jobscriados[i].pid_process);
         }
     }
     return;
@@ -79,25 +81,48 @@ void listjobs()//printa os jobs que ainda não foram terminados
 
 void leInput(char *input)
 {
-    scanf("%[^\n]", input); 
+    //fgets (input, BUFFERLIMITE, stdin); //ele coloca \0 no final
+    //scanf("%[^\n]", input); 
     //printf("o comando digitado foi: %s\n", input);
     __fpurge(stdin);
+    int bufsize = BUFFERLIMITE;
+    int position = 0;
+    //char *buffer = malloc(sizeof(char) * bufsize);
+    int c;
+
+    if (!input) {
+        fprintf(stderr, "mysh: allocation error\n");
+        exit(1);
+    }
+
+    while (1) {
+        c = getchar();
+
+        if (c == EOF || c == '\n') {
+            input[position] = '\0';
+            return;
+        } else {
+            input[position] = c;
+        }
+        position++;
+
+        if (position >= bufsize) {
+            bufsize += BUFFERLIMITE;
+            input = realloc(input, bufsize);
+            if (!input) {
+                fprintf(stderr, "concha: allocation error\n");
+                exit(1);
+            }
+        }
+    }
     return;
 }
-
-
 
 
 void limpaTerminal()
 {
     printf("\033[H\033[J");//limpa o terminal
 }
-
-
-
-
-
-
 
 
 void parsedInput(char *comando, char ** destino, char separador) //divide os comandos dados na entrada e armazena no vetor destino
@@ -123,7 +148,7 @@ void parsedInput(char *comando, char ** destino, char separador) //divide os com
 
 char * ultimoElemCaminho(char ** caminho)
 {
-    for (int i=0; i< bufferLimite;i++)
+    for (int i=0; i< BUFFERLIMITE;i++)
     {
         if(caminho[i+1] == NULL)
             return caminho[i];
@@ -147,10 +172,10 @@ void cd(char *caminho)
 
 void printaCaminho()
 {
-    char cwd[bufferLimite];
+    char cwd[BUFFERLIMITE];
     if (getcwd(cwd, sizeof(cwd)) != NULL) {
         char **parsed = (char **) malloc (sizeof(char *));
-        for(int i =0; i<bufferLimite; i++)
+        for(int i =0; i<BUFFERLIMITE; i++)
         {
             parsed[i]= (char *) malloc(sizeof(char));
         }
@@ -170,38 +195,11 @@ void printaCaminho()
 
 void exec_nao_buildin(char **comando)//, char *tipo, char *diretorio)
 {
-    
-    char caminho[20] = "/usr/bin/";
-    char cwd[bufferLimite];
-        
-
-    strcat(caminho, comando[0]);
-    if(comando[1] == NULL) //comando do diretorio atual
-    {
-        if(getcwd(cwd, sizeof(cwd)) != NULL){
-            execl(caminho, comando[0], cwd, NULL);
-        }
-        else{perror("");return;}
-    }
-
-    else if(comando[1][0]=='-')
-    {
-        if(comando[2]==NULL)
-        {
-            if(getcwd(cwd, sizeof(cwd))!=NULL)
-            {
-                execl(caminho, comando[0], comando[1], cwd, NULL); //comando de tipo t do diretorio atual
-            }
-            else{perror(""); return;}
-        }
-        else{ //comando de tipo t do diretorio x
-            execl(caminho, comando[0], comando[1], comando[2], NULL);
-        }
-    }
-    
-    else//comando do diretorio x
-    {
-        execl(caminho, comando[0], comando[1], NULL);
+    //printf("comando[0]: %s\n", comando[0]);
+    //printf("comando[1]: %s\n", comando[1]);
+    //printf("comando[0]: %s", comando[0]);
+    if (execvp(comando[0], comando) == -1) {
+    perror("Error");
     }
 }
 
@@ -216,6 +214,7 @@ void exec_buildin(char **comando)//identifica o comando e redireciona para o pro
         
     if (strcmp(comando[0], "jobs")==0 ) //executa o comando jobs  //ToDo
     {
+        listjobs();
         return;
     }
 
@@ -241,52 +240,6 @@ void exec_buildin(char **comando)//identifica o comando e redireciona para o pro
         return;
     }
 
-    /* //apartir dq realocar o codigo
-    if(strcmp(comando[0], "rm") == 0 ||strcmp(comando[0], "ls")==0)//executa o comando ls //ls n eh build-in 
-    {                                                       //deveria ficar junto?
-        char cwd[bufferLimite];                 //pra dar ls tem q ser o filho
-                                                //mas n deve ficar junto dos built-in
-        if (comando[1]==NULL) //ls do proprio diretorio
-        {
-            if (getcwd(cwd, sizeof(cwd)) != NULL) {
-                ls(comando[0], NULL, cwd);
-            }
-            else 
-            {
-                perror("talvez aqui");//erro no diretorio que a gente tá??
-                return;
-            }
-            return;//teoricamente nunca chegamos nesse return
-        }
-
-        if (comando[1][0]=='-'){ //ls de tipo t do diretorio x
-            if (comando[2]==NULL)
-            {
-                if (getcwd(cwd, sizeof(cwd)) != NULL) 
-                {
-                    ls(comando[0], comando[1], cwd); //comando[1] - tipo do ls do propio diretorio
-                }
-                else 
-                {
-                    perror("tamo aqui");//erro no diretorio que a gente tá??
-                    return;
-                }
-                return;//teoricamente nunca chegamos nesse return
-                
-            }
-            else
-            {
-                ls(comando[0], comando[1], comando[2]); //comando[1] - tipo do ls   comando[2] - diretorio
-                return;//teoricamente nunca chegamos nesse return
-            }
-        }
-        else  //ls do diretorio x
-        { 
-            ls(comando[0], NULL, comando[1]);
-            return;//teoricamente nunca chegamos nesse return
-        }
-    }*/
-
 }
 
 
@@ -311,59 +264,92 @@ int ehBuildin(char *comando) //valida se o comando eh buildin ou nao
     return 0; // nao achou um comando build in
 }
 
+void sigint_handler(int sig) {
+    
+    if (!jump_active) {
+        return;
+    }
+    siglongjmp(env, 42);
+}
 
 int main()
 {   
     jobscriados = (jobs *)malloc(20*sizeof(jobs));//como aloca isso?
     jobs novoJob;
     pid_t pid;
+    int modo = FOREGROUND_EXECUTION;
+    int status;
+    
+
+
     __fpurge(stdin);
     limpaTerminal();
-    char **caminho = (char **) malloc(bufferLimite*sizeof(char *));
-    for(int i=0; i<bufferLimite; i++)
+    char **caminho = (char **) malloc(BUFFERLIMITE*sizeof(char *));
+    for(int i=0; i<BUFFERLIMITE; i++)
     {
-        caminho[i]= (char*) malloc(bufferLimite*sizeof(char));
+        caminho[i]= (char*) malloc(BUFFERLIMITE*sizeof(char));
     }
     if(caminho == NULL)return -1;
     
-    char *comando= (char *) malloc(bufferLimite*sizeof(char));    
-    char **comandoSeparado =(char **) malloc(bufferLimite*sizeof(char *));
-    for(int i=0; i<bufferLimite; i++)
+    char *comando= (char *) malloc(BUFFERLIMITE*sizeof(char));    
+    char **comandoSeparado =(char **) malloc(BUFFERLIMITE*sizeof(char *));
+    for(int i=0; i<BUFFERLIMITE; i++)
     {
-        comandoSeparado[i]= (char*) malloc(bufferLimite*sizeof(char));
+        comandoSeparado[i]= (char*) malloc(BUFFERLIMITE*sizeof(char));
     }
 
     caminho[0][0]= '~';
     caminho[1]=NULL;
     
+    signal(SIGINT, sigint_handler);//control c tratado na main
+    //signal(SIGSTOP, signtint_handler);//control z tratado na main
+
     while(1) //enquanto a concha existe ele está rodando
     {
-        
+        if (sigsetjmp(env, 1) == 42)
+        {
+            printf("\n");
+            continue;
+        }
+        jump_active = 1;
         printaCaminho();
         
         leInput(comando);
+        
+        if (comando[strlen(comando) - 1] == '&') {
+            modo = BACKGROUND_EXECUTION;
+            comando[strlen(comando) - 1] = '\0';
+        }
+        
         parsedInput(comando, comandoSeparado, ' ');
         
         //identificar se o comando eh build in
         // se nao for cria filho
         if(!ehBuildin(comandoSeparado[0])){
             pid = fork();
-            //if(fork()== 0){//criando filho
-            if(pid == 0){
-                exec_nao_buildin(comandoSeparado);
+            //if(fork()== 0){   //criando filho
+            if(pid == 0){   //criando filho
+                //printf("valor do if: %d\n", sigsetjmp(env, 1));
+                
+                //jump_active = 1;
+                exec_nao_buildin(comandoSeparado);//posso fechar?
             }
             else //processo pai esperando filho retornar
             {
-                //printf("pid do pai: %d\n",getpid());
-                adicionaJobs(novoJob, pid, comandoSeparado[3]);
-                wait(NULL);
+                adicionaJobs(novoJob, pid, modo, comando);
+                if (modo == FOREGROUND_EXECUTION)
+                {
+                    waitpid(pid, &status, 0);
+                }
+                //else{
+                //
+                //}    
             }
         }
 
         else{
             exec_buildin(comandoSeparado);
         }
-        printf("job id: %d\n",jobscriados[0].id );
     }
     
     return 0;
