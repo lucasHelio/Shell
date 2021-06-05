@@ -15,6 +15,7 @@
 #define BUFFERLIMITE 200
 static jmp_buf env;
 int jump_active = 0;
+pid_t pid;
 
 typedef struct jobs
 {
@@ -33,7 +34,7 @@ char *getcwd(char *buf, size_t size);
 
 
 
-const char *status_string[] = { "rodando", "travado", "em chok"};
+const char *STATUS_STRING[] = { "Executando", "Suspenso", "Terminado"};
 
 void adicionaJobs(jobs job, pid_t pid_process, int modo, char* nome)
 {
@@ -43,7 +44,7 @@ void adicionaJobs(jobs job, pid_t pid_process, int modo, char* nome)
 
     strcpy(job.nome, nome);
 
-    strcpy(job.status, status_string[0]);
+    strcpy(job.status, STATUS_STRING[0]);
 
     job.pid_process = pid_process;
     
@@ -55,12 +56,27 @@ void adicionaJobs(jobs job, pid_t pid_process, int modo, char* nome)
     return;
 }
 
+void suspendeJobs(pid_t pid_process)
+{
+    for(int i =0;i<jobsexistentes;i++)
+    {
+        if(jobscriados[i].pid_process == pid_process)
+        {
+            strcpy(jobscriados[i].status, STATUS_STRING[1]);//seta como suspenso
+            kill(pid_process, SIGSTOP); //Faz o processo parar
+            break;
+        }
+    }
+    return;
+}
+
 void eliminaJobs(pid_t pid_process) //seta o status do job como terminado
 {
     for(int i =0; i< jobsexistentes;i++)
     {
         if(jobscriados[i].pid_process == pid_process){
-            strcpy(jobscriados[i].status, status_string[2]);// seta como terminado
+            strcpy(jobscriados[i].status, STATUS_STRING[2]);// seta como terminado
+            kill(pid_process, SIGSTOP); //seria SIGSTOP msm?
             break;
         }
     }
@@ -71,7 +87,7 @@ void listjobs()//printa os jobs que ainda não foram terminados
 { 
     for(int i=0;i<jobsexistentes;i++)
     {
-        if(jobscriados->status!=status_string[2])
+        if(jobscriados->status!=STATUS_STRING[2])
         {
             printf("id: [%d] nome: %s \tstatus: %s pid process: %d\n", jobscriados[i].id, jobscriados[i].nome, jobscriados[i].status, jobscriados[i].pid_process);
         }
@@ -264,19 +280,36 @@ int ehBuildin(char *comando) //valida se o comando eh buildin ou nao
     return 0; // nao achou um comando build in
 }
 
+
+
 void sigint_handler(int sig) {
-    
-    if (!jump_active) {
+    puts("entrou sighand");
+    if (sig == SIGINT){
+        if (!jump_active) {
+            return;
+        }
+        siglongjmp(env, 42);
         return;
     }
-    siglongjmp(env, 42);
+    if (sig ==SIGTSTP){
+        puts("entro sigstop");
+        suspendeJobs(pid); //uma funcao que suspenderia o filho
+        //kill(pid filho, SIGSTOP);
+        //kill(pid pai, SIGCONT);
+        if (!jump_active) {
+            return;
+        }
+        siglongjmp(env, 42);
+        return;
+    }
+
 }
 
 int main()
 {   
     jobscriados = (jobs *)malloc(20*sizeof(jobs));//como aloca isso?
     jobs novoJob;
-    pid_t pid;
+    //pid_t pid;
     int modo = FOREGROUND_EXECUTION;
     int status;
     
@@ -302,7 +335,7 @@ int main()
     caminho[1]=NULL;
     
     signal(SIGINT, sigint_handler);//control c tratado na main
-    //signal(SIGSTOP, signtint_handler);//control z tratado na main
+    signal(SIGTSTP, sigint_handler);//control z tratado na main
 
     while(1) //enquanto a concha existe ele está rodando
     {
