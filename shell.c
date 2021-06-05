@@ -76,7 +76,7 @@ void eliminaJobs(pid_t pid_process) //seta o status do job como terminado
     {
         if(jobscriados[i].pid_process == pid_process){
             strcpy(jobscriados[i].status, STATUS_STRING[2]);// seta como terminado
-            kill(pid_process, SIGSTOP); //seria SIGSTOP msm?
+            kill(pid_process, SIGKILL); //seria SIGSTOP msm?
             break;
         }
     }
@@ -87,7 +87,7 @@ void listjobs()//printa os jobs que ainda não foram terminados
 { 
     for(int i=0;i<jobsexistentes;i++)
     {
-        if(jobscriados->status!=STATUS_STRING[2])
+        if(strcmp(jobscriados[i].status, STATUS_STRING[2])!=0)
         {
             printf("id: [%d] nome: %s \tstatus: %s pid process: %d\n", jobscriados[i].id, jobscriados[i].nome, jobscriados[i].status, jobscriados[i].pid_process);
         }
@@ -283,8 +283,10 @@ int ehBuildin(char *comando) //valida se o comando eh buildin ou nao
 
 
 void sigint_handler(int sig) {
-    puts("entrou sighand");
-    if (sig == SIGINT){
+    //puts("entrou sighand");
+    if (sig == SIGINT)
+    {
+        eliminaJobs(pid);
         if (!jump_active) {
             return;
         }
@@ -292,7 +294,7 @@ void sigint_handler(int sig) {
         return;
     }
     if (sig ==SIGTSTP){
-        puts("entro sigstop");
+        //puts("entro sigstop");
         suspendeJobs(pid); //uma funcao que suspenderia o filho
         //kill(pid filho, SIGSTOP);
         //kill(pid pai, SIGCONT);
