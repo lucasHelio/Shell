@@ -19,6 +19,7 @@ const char *COMANDOBUILDIN[] = { "cd", "jobs", "fg", "bg", "exit", "clear"};
 
 static jmp_buf env;
 int jump_active = 0;
+int jump_active2 = 0;
 pid_t pid_crp;
 
 typedef struct jobs
@@ -32,12 +33,12 @@ typedef struct jobs
 }jobs;
 
 int numTotalJobs=0;
-jobs* jobs_criados;
+jobs* jobsCriados;
 
 
 
-//void adicionaJobs(jobs job, pid_t pid_process, int modo, char* nome)
-void adicionaJobs(int modo, char* nome)
+//void AdicionaJobs(jobs job, pid_t pid_process, int modo, char* nome)
+void AdicionaJobs(int modo, char* nome)
 {
     jobs job;
     
@@ -53,19 +54,19 @@ void adicionaJobs(int modo, char* nome)
 
     job.cont =0;
 
-    jobs_criados[numTotalJobs] = job;
+    jobsCriados[numTotalJobs] = job;
 
     numTotalJobs++;
     return;
 }
 
-void suspendeJobs(pid_t pid)
+void SuspendeJobs(pid_t pid)
 {
     for(int i =0;i<=numTotalJobs;i++)
     {
-        if(jobs_criados[i].pid == pid)
+        if(jobsCriados[i].pid == pid)
         {
-            strcpy(jobs_criados[i].status, STATUS_STRING[1]);//seta como suspenso
+            strcpy(jobsCriados[i].status, STATUS_STRING[1]);//seta como suspenso
             kill(pid, SIGSTOP); //Faz o processo parar
             break;
         }
@@ -73,13 +74,13 @@ void suspendeJobs(pid_t pid)
     return;
 }
 
-void concluiJobs(pid_t pid)
+void ConcluiJobs(pid_t pid)
 {
     for(int i=0; i<=numTotalJobs; i++)
     {
-        if(jobs_criados[i].pid == pid)
+        if(jobsCriados[i].pid == pid)
         {
-            strcpy(jobs_criados[i].status, STATUS_STRING[2]);//seta como concluido
+            strcpy(jobsCriados[i].status, STATUS_STRING[2]);//seta como concluido
             //kill(pid_process, SIGSTOP); //Faz o processo parar
             break;
         }
@@ -87,14 +88,14 @@ void concluiJobs(pid_t pid)
     return;
 }
 
-void eliminaJobs(pid_t pid) //seta o status do job como terminado
+void EliminaJobs(pid_t pid) //seta o status do job como terminado
 {
     for(int i =0; i<= numTotalJobs;i++)
     {
-        if(jobs_criados[i].pid == pid){
-            strcpy(jobs_criados[i].status, STATUS_STRING[3]);// seta como terminado
-            if (jobs_criados[i].modo==BACKGROUND_EXECUTION){
-                printf("[%d] \t%s \t%s\n", jobs_criados[i].id, jobs_criados[i].status, jobs_criados[i].nome); //OLHAR ISSO COM MAIS ATENCAO
+        if(jobsCriados[i].pid == pid){
+            strcpy(jobsCriados[i].status, STATUS_STRING[3]);// seta como terminado
+            if (jobsCriados[i].modo==BACKGROUND_EXECUTION){
+                printf("[%d] \t%s \t%s\n", jobsCriados[i].id, jobsCriados[i].status, jobsCriados[i].nome); //OLHAR ISSO COM MAIS ATENCAO
             }
             kill(pid, SIGKILL); //
             break;
@@ -103,15 +104,15 @@ void eliminaJobs(pid_t pid) //seta o status do job como terminado
     return;
 }
 
-void listjobs()//printa os jobs que ainda não foram terminados
+void Listjobs()//printa os jobs que ainda não foram terminados
 { 
     for(int i=0;i<numTotalJobs;i++)
     {
-        if(jobs_criados[i].cont == 0 /*&& jobs_criados[i].id !=0*/)
+        if(jobsCriados[i].cont == 0 /*&& jobsCriados[i].id !=0*/)
         {
-            printf("[%d] \t%s \t%s \tpid:%d\n", jobs_criados[i].id, jobs_criados[i].status, jobs_criados[i].nome, jobs_criados[i].pid);
-            if(strcmp(jobs_criados[i].status, STATUS_STRING[2])==0 || strcmp(jobs_criados[i].status, STATUS_STRING[3])==0)//certifica de printar uma unica vez o terminado dps q ele acaba
-                jobs_criados[i].cont++;
+            printf("[%d] \t%s \t%s \tpid:%d\n", jobsCriados[i].id, jobsCriados[i].status, jobsCriados[i].nome, jobsCriados[i].pid);
+            if(strcmp(jobsCriados[i].status, STATUS_STRING[2])==0 || strcmp(jobsCriados[i].status, STATUS_STRING[3])==0)//certifica de printar uma unica vez o terminado dps q ele acaba
+                jobsCriados[i].cont++;
         }
     }
     return;
@@ -156,12 +157,12 @@ void leInput(char *input)
     return;
 }
 
-void limpaTerminal()
+void LimpaTerminal()
 {
     printf("\033[H\033[J");//limpa o terminal
 }
 
-void parsedInput(char *comando, char ** destino, char separador) //divide os comandos dados na entrada e armazena no vetor destino
+void ParsedInput(char *comando, char ** destino, char separador) //divide os comandos dados na entrada e armazena no vetor destino
 {
     char *parsed;
     int index =0;
@@ -181,7 +182,7 @@ void parsedInput(char *comando, char ** destino, char separador) //divide os com
     return;
 }
 
-char * ultimoElemCaminho(char ** caminho)
+char * UltimoElemCaminho(char ** caminho)
 {
     for (int i=0; i< BUFFERLIMITE;i++)
     {
@@ -190,11 +191,11 @@ char * ultimoElemCaminho(char ** caminho)
     }
 }
 
-void cd(char *caminho)
+void Cd(char *caminho)
 {
     if(caminho == NULL)
     {
-        printf("argumento esperado para cd\n");
+        printf("argumento esperado para Cd\n");
         return;
     }
     else
@@ -208,33 +209,103 @@ void cd(char *caminho)
     return;
 }
 
-/*
-void bg (char * num_process){
-    if (num_process == NULL){
-        crprocess_to_bg();
-
-    }
-    else{
-        process_to_bg(num_process);
-
-    }
-}
-
-
-void process_to_bg (char* num_process){
+void CrProcessToBg (){
     for(int i =0;i<=numTotalJobs;i++)
     {
-        if(jobs_criados[i].id == atoi(num_process) || strcmp(jobs_criados[i].nome, num_process))
+        if(jobsCriados[i].pid == pid_crp)
         {
-            jobs_criados[i].modo = BACKGROUND_EXECUTION;//seta como background
-            strcpy(jobs_criados[i].status, STATUS_STRING[0]);//seta como executando
+            jobsCriados[i].modo = BACKGROUND_EXECUTION;//seta como background
+            setpgid(pid_crp, BACKGROUND_EXECUTION);
+            strcpy(jobsCriados[i].status, STATUS_STRING[0]);//seta como executando
+            kill(pid_crp, SIGCONT);
             break;
         }
     }
 }
-*/
 
-void printaCaminho()
+
+
+
+void ProcessToBg (char* index){
+    for(int i =0;i<=numTotalJobs;i++)
+    {
+        
+        if(jobsCriados[i].id == strtol(index, NULL, 10)) /*|| strcmp(jobsCriados[i].nome, index)*/
+        {
+            
+            if(strcmp(jobsCriados[i].status, STATUS_STRING[1])==0)
+            {
+                jobsCriados[i].modo = BACKGROUND_EXECUTION;//seta como background
+                setpgid(jobsCriados[i].pid, BACKGROUND_EXECUTION);
+                strcpy(jobsCriados[i].status, STATUS_STRING[0]);//seta como executando
+                kill(jobsCriados[i].pid, SIGCONT);
+                return;
+            }
+            else
+            {
+                printf("Não eh possivel colocar o processo em background\n");
+                return;
+            }
+        }
+    } 
+    printf("Não existe processo com esse id\n");
+    return;
+        
+}
+
+void Bg (char * index){
+    if (index == NULL){
+        CrProcessToBg();
+    }
+    else{
+        //printf("index: %s\n", index);
+        //printf("index++: %s\n", index++);
+        //index++; vo ver o fg
+        ProcessToBg(index+1);
+    }
+}
+
+void ProcessToFg(char* index){ //aqui ele pode entrar em dois momento, se esta parado ou se esta rodando em background
+    for(int i =0;i<=numTotalJobs;i++)
+    {
+        printf("estou verificando os casos, index: %ld\n", strtol(index, NULL, 10));
+        
+        if(jobsCriados[i].id == strtol(index, NULL, 10)) /*|| strcmp(jobsCriados[i].nome, index)*/
+        {
+            printf("entrei no if do fg, pid: %d\n", jobsCriados[i].id);
+            
+            if(strcmp(jobsCriados[i].status, STATUS_STRING[1])==0 || strcmp(jobsCriados[i].status, STATUS_STRING[0])==0  /*&& (jobsCriados[i].modo)== BACKGROUND_EXECUTION)*/)
+            {//
+                printf("estou dentro do caso aceito\n");//eu acho q quando a gente manda esse sigcont ele manda um sinal q o filho voltou
+                jobsCriados[i].modo = FOREGROUND_EXECUTION;//seta como background
+                setpgid(jobsCriados[i].pid, FOREGROUND_EXECUTION);
+                strcpy(jobsCriados[i].status, STATUS_STRING[0]);//seta como executando
+                kill(jobsCriados[i].pid, SIGCONT); //
+                return;//to pensando acho q vai tter q rolar o jump
+            }
+            else
+            {
+                printf("Não eh possivel colocar o processo em foreground\n");
+                return;
+            }
+        }
+        
+    }
+    printf("Não existe processo com esse id\n");
+    return;
+}
+
+void Fg (char* index){
+    if (index == NULL){
+        puts ("fg necessita de um argumento."); //precisa? precisa
+    }
+    else{
+        
+        ProcessToFg(index+1);
+    }
+}
+
+void PrintaCaminho()
 {
     char cwd[BUFFERLIMITE];
     if (getcwd(cwd, sizeof(cwd)) != NULL) {
@@ -244,10 +315,10 @@ void printaCaminho()
             parsed[i]= (char *) malloc(sizeof(char));
         }
         
-        parsedInput(cwd, parsed, '/');
+        ParsedInput(cwd, parsed, '/');
         
 
-        printf("\033[92mconcha:\033[34m%s\033[0m$ ",ultimoElemCaminho(parsed));
+        printf("\033[92mconcha:\033[34m%s\033[0m$ ",UltimoElemCaminho(parsed));
         
     }
     else  
@@ -257,7 +328,7 @@ void printaCaminho()
     }
 }
 
-void exec_nao_buildin(char **comando)//, char *tipo, char *diretorio)
+void ExecNaoBuildin(char **comando)//, char *tipo, char *diretorio)
 {
     fflush(stdout);
     if (execvp(comando[0], comando) == -1)
@@ -267,48 +338,51 @@ void exec_nao_buildin(char **comando)//, char *tipo, char *diretorio)
     }
 }
 
-void exec_buildin(char **comando)//identifica o comando e redireciona para o proprio;
+void ExecBuiltin(char **comando)//identifica o comando e redireciona para o proprio;
 {
-    if (strcmp(comando[0], "cd") == 0)//excuta o comando cd
+    if (strcmp(comando[0], "cd") == 0)//excuta o comando Cd
     {
-        cd(comando[1]);
+        Cd(comando[1]);
         return;
     }
         
     if (strcmp(comando[0], "jobs")==0 ) //executa o comando jobs  //ToDo
     {
-        listjobs();
+        Listjobs();
         return;
     }
 
     if(strcmp(comando[0], "fg")==0 )// executa o comando fg    //ToDo
     {
+        Fg(comando[1]);
         return;
     }
 
-    if(strcmp(comando[0], "bg")==0)//executa o comando bg    //ToDo
+    if(strcmp(comando[0], "bg")==0)//executa o comando Bg    //ToDo
     {
-        //bg(comando);
+        Bg(comando[1]);
         return;
     }
+
+    if (strcmp(comando[0], ""))
     
     if(strcmp(comando[0], "exit")==0)//executa o exit./terminal
     {
-        printf("Where there is a shell there is a way...\n");
+        printf("Where there is a shell, there is a way...\n\n\n\n\n\n");
         exit(0);    //hmmmmm
     }
 
     if(strcmp(comando[0], "clear")==0)// limpa o terminalc
     {
-        limpaTerminal();
+        LimpaTerminal();
         return;
     }
 
 }
 
-int ehBuildin(char *comando) //valida se o comando eh buildin ou nao
+int EhBuiltin(char *comando) //valida se o comando eh buildin ou nao
 {
-    //char *comandobuildin[] = { "cd", "jobs", "fg", "bg", "exit", "clear"};
+    //char *comandobuildin[] = { "Cd", "jobs", "fg", "Bg", "exit", "clear"};
     
     for(int i=0 ; i< 6;i++)
     {
@@ -320,13 +394,13 @@ int ehBuildin(char *comando) //valida se o comando eh buildin ou nao
     return 0; // nao achou um comando build in
 }
 
-void sig_handler(int sig) {
-    
+void SigHandler(int sig) //tem que tratar o sigcont no handler
+{
     //printf("chegou um sinal\n");
     if (sig == SIGINT)
     {
         
-        eliminaJobs(pid_crp); //termina o ultimo processo a ser ativado
+        EliminaJobs(pid_crp); //termina o ultimo processo a ser ativado
         if (!jump_active) {
         
             return;
@@ -337,7 +411,7 @@ void sig_handler(int sig) {
     }
     if (sig ==SIGTSTP){
         
-        suspendeJobs(pid_crp); //uma funcao que suspenderia o filho
+        SuspendeJobs(pid_crp); //uma funcao que suspenderia o filho
         
         if (!jump_active) { 
         
@@ -347,45 +421,59 @@ void sig_handler(int sig) {
         
         return;
     }
+
     if (sig == SIGCHLD)
     {
         //printf("chegou um sinal sigchild\n");
         pid_t outro_pid;
+        //siginfo_t child_info;
         int status;
 
         
         
         //temos q verificar se eh background?
-        while((outro_pid=waitpid(-1, &status, WNOHANG | WUNTRACED))>0){//so background entra aqui?
-        //while(outro_pid=waitid(P_PGID, FOREGROUND_EXECUTION|BACKGROUND_EXECUTION,&status , WNOHANG | WUNTRACED)){
+        while((outro_pid=waitpid(-1, &status, WNOHANG | WUNTRACED | WCONTINUED))>0){//so background entra aqui?
+        //while(waitid(P_ALL,0,&child_info,WEXITED|WSTOPPED)==0){
         
             //printf("entrei no while\n");
             if(WIFEXITED(status))//se o filho terminou normalmente? deu exit veio pra cá
             {
-                //printf("entrou em concluijobs\n");
+                //printf("entrou em Concluijobs\n");
                 //printf("pid do conclui jobs: %d\n", outro_pid);
-                concluiJobs(outro_pid);
+                ConcluiJobs(outro_pid);
                 return;
             }
             else if(WIFSIGNALED(status))//checar se eh control c //checar pq ele deu terminado num processo foreground que terminou normalmente
             {
-                //printf("entrou em eliminajobs\n");
+                //printf("entrou em Eliminajobs\n");
                 //if()//foi control c usa elimina jobs
                 //printf("pid do elimina jobs: %d\n", outro_pid);
-                eliminaJobs(outro_pid);
+                EliminaJobs(outro_pid);
                 //else //usa termina?
                 return;
             }
             else if(WIFSTOPPED(status))
             {
             
-                suspendeJobs(outro_pid);
+                SuspendeJobs(outro_pid);
+                return;
+            }
+            else if(WIFCONTINUED(status))//um filho foi continuado
+            {
+                //signal(SIGTTOU, SIG_IGN);
+                //tcsetpgrp(0, getpid());
+                //signal(SIGTTOU, SIG_DFL);
+                if (!jump_active) { 
+                    return;
+                }
+                siglongjmp(env, 60);
+                
                 return;
             }
             
         }
-        //printf("chegou depois do while\n");
-        concluiJobs(pid_crp);
+        
+        ConcluiJobs(pid_crp);
         return;
     }
 
@@ -395,13 +483,13 @@ int main()
 {   
     
 
-    jobs_criados = (jobs *)malloc(20*sizeof(jobs));
+    jobsCriados = (jobs *)malloc(20*sizeof(jobs));
     jobs novoJob;
     
     int status;
 
     __fpurge(stdin);
-    limpaTerminal();
+    LimpaTerminal();
 
     char *comando= (char *) malloc(BUFFERLIMITE*sizeof(char));    
     char **caminho = (char **) malloc(BUFFERLIMITE*sizeof(char *));
@@ -423,9 +511,9 @@ int main()
     caminho[1]=NULL;
     //setpgid();
     
-    signal(SIGINT, sig_handler);//control c tratado na main
-    signal(SIGTSTP, sig_handler);//control z tratado na main
-    signal(SIGCHLD, sig_handler);// trata o termino de um filho
+    signal(SIGINT, SigHandler);//control c tratado na main
+    signal(SIGTSTP, SigHandler);//control z tratado na main
+    signal(SIGCHLD, SigHandler);// trata o termino de um filho
     
     
     while(1) //enquanto a concha existe ele está rodando
@@ -437,7 +525,7 @@ int main()
             continue;
         }
         jump_active = 1;
-        printaCaminho();
+        PrintaCaminho();
         
         leInput(comando);
         
@@ -447,39 +535,42 @@ int main()
             comando[strlen(comando) - 1] = '\0';
         }
         
-        parsedInput(comando, comandoSeparado, ' ');
+        ParsedInput(comando, comandoSeparado, ' ');
         
         //identificar se o comando eh build in
         // se nao for cria filho
-        if(!ehBuildin(comandoSeparado[0])){
+        if(!EhBuiltin(comandoSeparado[0])){
             fflush(stdout);
             pid_crp = fork();
             
             if(pid_crp == 0) //se filho 
             {
                 
-                exec_nao_buildin(comandoSeparado);//posso fechar?
+                ExecNaoBuildin(comandoSeparado);//posso fechar?
             }
-            else //processo pai esperando filho retornar
+            else //processo pai esperando filho retornard: 0
+            //index: 0//de onde veio isso???
             {
                 
-                //adicionaJobs(novoJob, pid, modo, comando);
-                adicionaJobs(modo, comando);
+                //AdicionaJobs(novoJob, pid, modo, comando);
+                AdicionaJobs(modo, comando);
                 if (modo == FOREGROUND_EXECUTION)
                 {
-                    //setpgid(pid_crp, BACKGROUND_EXECUTION);
+                    setpgid(pid_crp, FOREGROUND_EXECUTION);
+                    //jumpa pra ca
+                    
                     waitpid(pid_crp, &status, 0);
-                    //concluiJobs(pid_crp);
+                    //ConcluiJobs(pid_crp);
                 }
                 else{ 
                     setpgid(pid_crp, BACKGROUND_EXECUTION); 
-                    printf("[%d] \t%d\n", jobs_criados[numTotalJobs-1].id, jobs_criados[numTotalJobs-1].pid);
+                    printf("[%d] \t%d\n", jobsCriados[numTotalJobs-1].id, jobsCriados[numTotalJobs-1].pid);
                     
                 }
             }
         }
         else{
-            exec_buildin(comandoSeparado);
+            ExecBuiltin(comandoSeparado);
         }
     }
     
