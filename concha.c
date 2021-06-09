@@ -699,10 +699,8 @@ int main()
                 ExecNaoBuildin(comandoSeparado);//posso fechar?
             }
             else //processo pai esperando filho retornard: 0
-            //index: 0//de onde veio isso???
+            
             {
-                
-                //AdicionaJobs(novoJob, pid, modo, comando);
                 AdicionaJobs(modo, comando);
                 if (modo == FOREGROUND_EXECUTION)
                 {
@@ -712,7 +710,6 @@ int main()
                 else{ 
                     setpgid(g_pid_crp, BACKGROUND_EXECUTION); 
                     printf("[%d] \t%d\n", jobsCriados[g_numTotalJobs-1].id, jobsCriados[g_numTotalJobs-1].pid);
-                    
                 }
             }
         }
@@ -720,6 +717,5 @@ int main()
             ExecBuiltin(comandoSeparado);
         }
     }
-    
     return 0;
 }
